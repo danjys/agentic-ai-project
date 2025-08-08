@@ -152,3 +152,10 @@ docker system prune
 If only one container changes then
 docker-compose up -d --build agent
 docker-compose logs -f agent
+
+
+
+docker-compose build
+docker-compose up -d
+docker-compose ps
+docker-compose logs -f

@@ -4,12 +4,17 @@ import time
 FHIR_BASE_URL = "http://fhir:8080/fhir"
 DICOM_URL = "http://dicom:8002/process/"
 
-def wait_for_service(url, service_name, timeout=60, interval=5):
+def wait_for_service(url, service_name, timeout=60, interval=5, method='GET'):
     print(f"Waiting for {service_name} service to be ready at {url} ...")
     start_time = time.time()
     while True:
         try:
-            r = requests.get(url)
+            if method == 'GET':
+                r = requests.get(url)
+            elif method == 'POST':
+                r = requests.post(url)
+            else:
+                raise ValueError(f"Unsupported HTTP method: {method}")
             if r.status_code == 200:
                 print(f"{service_name} is ready!")
                 return
@@ -22,11 +27,12 @@ def wait_for_service(url, service_name, timeout=60, interval=5):
         print(f"{service_name} not ready yet, retrying in {interval}s...")
         time.sleep(interval)
 
+
 def main_loop():
     print("Agent Controller Starting...")
 
     wait_for_service(f"{FHIR_BASE_URL}/ImagingStudy?_count=1", "FHIR")
-    wait_for_service(f"{DICOM_URL}health", "DICOM")
+    wait_for_service(f"{DICOM_URL}health", "DICOM", method='POST')
 
     while True:
         try:
