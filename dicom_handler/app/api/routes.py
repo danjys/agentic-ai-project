@@ -2,8 +2,12 @@ from fastapi import APIRouter, File, UploadFile, HTTPException, Response
 from tempfile import NamedTemporaryFile
 import os
 from app.services import orthanc, monai, dicom_utils
+from app.api import auto_contour
 
 router = APIRouter()
+
+# Add new feature routers:
+router.include_router(auto_contour.router, prefix="/auto_contour")
 
 @router.get("/process/health")
 async def health_check():
