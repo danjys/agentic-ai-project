@@ -1,20 +1,41 @@
-version: '3.9'
 services:
   agent:
     build: ./agent_controller
+    volumes:
+      - ./agent_controller:/app
     depends_on:
       - fhir
+      - orthanc
       - dicom
-    restart: always
 
   fhir:
-    build: ./fhir_handler
+    image: hapiproject/hapi-fhir-jpaserver:5.6.0
+    container_name: fhir
     ports:
-      - "8001:8001"
+      - "8011:8080"  # Map container's 8080 to host 8011
+    environment:
+      - HAPI_FHIR_VERSION=5.6.0
     restart: always
 
   dicom:
     build: ./dicom_handler
+    volumes:
+      - ./dicom_handler:/app
+
+  orthanc:
+    image: jodogne/orthanc-plugins
+    platform: linux/amd64
+    container_name: orthanc
     ports:
-      - "8002:8002"
+      - "8042:8042"    # Web UI + REST API
+      - "4242:4242"    # DICOM networking
+    environment:
+      ORTHANC__Name: "Orthanc AI"
+      ORTHANC__AuthenticationEnabled: "true"
+      ORTHANC__RegisteredUsers: '{"orthanc": "orthanc"}'
+    volumes:
+      - orthanc-storage:/var/lib/orthanc
     restart: always
+
+volumes:
+  orthanc-storage:

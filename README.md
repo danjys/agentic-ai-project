@@ -121,6 +121,34 @@ This project gives you:
     Dockerized, testable environment
 
 
+Build all services and containers
+docker-compose build
+
+Start all services in detached mode
+docker-compose up -d
+
+Check running containers
+docker-compose ps
+
+See logs for your agent container to check status and errors
+docker-compose logs -f agent
+
+To stop all running containers
+docker-compose down
 
 
-    
+DEBUG
+Check all Docker containers
+docker ps -a
+
+Find any container, stop and remove it
+docker stop <container_id_or_name>
+docker rm <container_id_or_name>
+
+You can also prune unused containers and networks to clean up
+docker system prune
+
+
+If only one container changes then
+docker-compose up -d --build agent
+docker-compose logs -f agent

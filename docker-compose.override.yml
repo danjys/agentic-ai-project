@@ -1,15 +1,21 @@
-version: '3.9'
-
 services:
   agent:
     build: ./agent_controller
     volumes:
       - ./agent_controller:/app
+    depends_on:
+      - fhir
+      - orthanc
+      - dicom
 
   fhir:
-    build: ./fhir_handler
-    volumes:
-      - ./fhir_handler:/app
+    image: hapiproject/hapi:latest
+    container_name: fhir
+    ports:
+      - "8011:8080"  # Map container's 8080 to host 8011
+    environment:
+      - HAPI_FHIR_VERSION=5.6.0
+    restart: always
 
   dicom:
     build: ./dicom_handler

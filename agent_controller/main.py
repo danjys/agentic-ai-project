@@ -1,20 +1,53 @@
 import requests
 import time
 
-FHIR_URL = "http://fhir:8001/studies"
+FHIR_BASE_URL = "http://fhir:8080/fhir"
 DICOM_URL = "http://dicom:8002/process/"
+
+def wait_for_service(url, service_name, timeout=60, interval=5):
+    print(f"Waiting for {service_name} service to be ready at {url} ...")
+    start_time = time.time()
+    while True:
+        try:
+            r = requests.get(url)
+            if r.status_code == 200:
+                print(f"{service_name} is ready!")
+                return
+        except requests.RequestException:
+            pass
+
+        if time.time() - start_time > timeout:
+            raise TimeoutError(f"Timeout waiting for {service_name} at {url}")
+
+        print(f"{service_name} not ready yet, retrying in {interval}s...")
+        time.sleep(interval)
 
 def main_loop():
     print("Agent Controller Starting...")
+
+    wait_for_service(f"{FHIR_BASE_URL}/ImagingStudy?_count=1", "FHIR")
+    wait_for_service(f"{DICOM_URL}health", "DICOM")
+
     while True:
         try:
             print("Fetching imaging studies...")
-            response = requests.get(FHIR_URL)
+            response = requests.get(f"{FHIR_BASE_URL}/ImagingStudy")
             response.raise_for_status()
-            studies = response.json().get("studies", [])
+
+            bundle = response.json()
+            studies = []
+
+            if bundle.get("resourceType") == "Bundle":
+                entries = bundle.get("entry", [])
+                for entry in entries:
+                    resource = entry.get("resource", {})
+                    if resource.get("resourceType") == "ImagingStudy":
+                        studies.append(resource)
+
+            print(f"Found {len(studies)} imaging studies")
 
             for study in studies:
-                study_id = study["id"]
+                study_id = study.get("id")
                 print(f"Processing study: {study_id}")
                 r = requests.post(f"{DICOM_URL}{study_id}")
                 print(f"Response: {r.json()}")
