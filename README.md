@@ -192,3 +192,62 @@ curl "http://localhost:8002/search_studies?patient_id=XDbxJIVWlkn"
 docker-compose build dicom
 docker-compose up -d dicom
 docker-compose logs -f dicom 
+
+
+1. Set up the Auto-Contouring Pipeline
+Extract DICOM series/volume:
+From Orthanc, fetch the full CT volume (all instances in the Study/Series) needed for contouring.
+
+Preprocess volume for MONAI model:
+
+Convert DICOM images to a 3D numpy array or tensor as MONAI expects.
+
+Apply intensity normalization and any spatial resampling.
+
+Handle cropping/padding to model input size.
+
+Run the segmentation model:
+
+Use a MONAI-trained model (e.g., U-Net) to infer auto-contours on the CT volume.
+
+Postprocess results:
+
+Threshold probability maps to get segmentation masks.
+
+Convert masks back to DICOM RTSTRUCT or Segmentation format.
+
+2. Store and Communicate Results
+Push generated contour DICOM objects back to Orthanc
+This keeps all study data together and accessible.
+
+Update FHIR resources
+
+Create/update FHIR ImagingStudy or ImagingManifest to reference new segmentations/contours.
+
+Optionally notify clinical systems or trigger workflows via FHIR messaging.
+
+3. Agentic Orchestration
+Implement an agent-like workflow to orchestrate these steps:
+
+Triggering:
+
+Either on-demand API call or listening for new uploads in Orthanc or FHIR.
+
+Task orchestration:
+
+Fetch data → preprocess → model inference → postprocess → store results → notify.
+
+Error handling & retry.
+
+Logging and audit trail.
+
+4. Build API endpoints for full workflow
+E.g., POST /auto_contour?study_id=xyz
+
+E.g., GET /contour_result/{study_id}
+
+5. UI / Visualization
+Build a simple web UI or integration to view original CT and overlay auto-contours.
+
+6. Testing and validation
+Validate contour accuracy on sample data, adjust models or postprocessing.

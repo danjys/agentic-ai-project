@@ -65,3 +65,15 @@ def search_studies(patient_id: str = None, study_date: str = None):
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail="Search failed")
+
+@router.post("/auto_contour/{study_id}")
+async def auto_contour(study_id: str):
+    try:
+        volume, slices = orthanc.load_volume_from_study(study_id)
+        tensor = monai.preprocess_volume(volume)
+        model = monai.load_model("models/your_model.pth")
+        segmentation = monai.run_inference(tensor, model)
+        # TODO: Convert segmentation to DICOM RTSTRUCT and upload
+        return {"message": "Auto contouring done.", "study_id": study_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
