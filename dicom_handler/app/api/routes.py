@@ -3,7 +3,9 @@ from tempfile import NamedTemporaryFile
 import os
 from app.services import orthanc, monai, dicom_utils
 from app.api import auto_contour
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Add new feature routers:
@@ -33,14 +35,17 @@ async def upload_dicom(file: UploadFile = File(...)):
     tmp_path = None
     try:
         contents = await file.read()
+        logger.info(f"Uploading file: {file.filename}, size: {len(contents)} bytes")
 
         orthanc_response = await orthanc.upload_dicom_to_orthanc(contents)
+        logger.info(f"Orthanc response: {orthanc_response}")
 
         with NamedTemporaryFile(delete=False, suffix=".dcm") as tmp:
             tmp.write(contents)
             tmp_path = tmp.name
 
         metadata = dicom_utils.parse_dicom_metadata(tmp_path)
+        logger.info(f"Extracted DICOM metadata: {metadata}")
 
         return {
             "message": "DICOM file uploaded successfully and sent to Orthanc.",
@@ -49,7 +54,8 @@ async def upload_dicom(file: UploadFile = File(...)):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process DICOM file: {str(e)}")
+        logger.error(f"Error processing DICOM upload: {repr(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to process DICOM file: {repr(e)}")
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)

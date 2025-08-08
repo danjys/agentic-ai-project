@@ -251,3 +251,7 @@ Build a simple web UI or integration to view original CT and overlay auto-contou
 
 6. Testing and validation
 Validate contour accuracy on sample data, adjust models or postprocessing.
+
+
+Oneliner to RESET everrything
+docker-compose down --volumes --remove-orphans && docker-compose up -d
