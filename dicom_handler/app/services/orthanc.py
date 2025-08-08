@@ -24,11 +24,14 @@ def retrieve_dicom_from_orthanc(orthanc_id: str):
 
 def search_studies(patient_id=None, study_date=None):
     import requests
+    base_url = ORTHANC_URL.rsplit('/', 1)[0]  # strip '/instances' from config URL
     query = {"Level": "Study", "Query": {}}
     if patient_id:
         query["Query"]["PatientID"] = patient_id
     if study_date:
         query["Query"]["StudyDate"] = study_date
-    r = requests.post(f"{ORTHANC_URL}/tools/find", json=query, auth=(ORTHANC_USERNAME, ORTHANC_PASSWORD))
+
+    r = requests.post(f"{base_url}/tools/find", json=query, auth=(ORTHANC_USERNAME, ORTHANC_PASSWORD))
     r.raise_for_status()
     return r.json()
+
