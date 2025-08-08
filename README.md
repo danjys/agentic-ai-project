@@ -181,7 +181,7 @@ curl http://localhost:8002/process/monai_test
 
 UPLOAD
 curl -X POST http://localhost:8002/upload_dicom \
-     -F "file=@/Users/danjys/Projects/data/xor_test/001848_004.dcm"
+     -F "file=@/Users/danjys/Projects/data/xor_test/001848_005.dcm"
 
 RETRIEVE
 curl -o retrieved.dcm http://localhost:8002/retrieve_dicom/1f96f67d8-14909f81-3b9b4dcf-114d15f0-ad81e62a
@@ -255,3 +255,12 @@ Validate contour accuracy on sample data, adjust models or postprocessing.
 
 Oneliner to RESET everrything
 docker-compose down --volumes --remove-orphans && docker-compose up -d
+
+
+
+ORTHANC DEBUGGING
+docker exec -it orthanc cat /etc/orthanc/orthanc.json
+docker logs orthanc | grep -i error
+docker logs orthanc
+docker inspect orthanc
+
