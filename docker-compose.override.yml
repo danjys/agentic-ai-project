@@ -21,6 +21,8 @@ services:
     build: ./dicom_handler
     volumes:
       - ./dicom_handler:/app
+    ports:
+      - "8002:8002"
 
   orthanc:
     image: jodogne/orthanc-plugins
