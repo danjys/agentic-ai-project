@@ -1,0 +1,20 @@
+version: '3.9'
+services:
+  agent:
+    build: ./agent_controller
+    depends_on:
+      - fhir
+      - dicom
+    restart: always
+
+  fhir:
+    build: ./fhir_handler
+    ports:
+      - "8001:8001"
+    restart: always
+
+  dicom:
+    build: ./dicom_handler
+    ports:
+      - "8002:8002"
+    restart: always

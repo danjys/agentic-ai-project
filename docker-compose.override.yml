@@ -1,0 +1,35 @@
+version: '3.9'
+
+services:
+  agent:
+    build: ./agent_controller
+    volumes:
+      - ./agent_controller:/app
+
+  fhir:
+    build: ./fhir_handler
+    volumes:
+      - ./fhir_handler:/app
+
+  dicom:
+    build: ./dicom_handler
+    volumes:
+      - ./dicom_handler:/app
+
+  orthanc:
+    image: jodogne/orthanc-plugins
+    platform: linux/amd64
+    container_name: orthanc
+    ports:
+      - "8042:8042"    # Web UI + REST API
+      - "4242:4242"    # DICOM networking
+    environment:
+      ORTHANC__Name: "Orthanc AI"
+      ORTHANC__AuthenticationEnabled: "true"
+      ORTHANC__RegisteredUsers: '{"orthanc": "orthanc"}'
+    volumes:
+      - orthanc-storage:/var/lib/orthanc
+    restart: always
+
+volumes:
+  orthanc-storage:
