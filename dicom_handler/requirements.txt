@@ -5,3 +5,4 @@ monai
 torch
 numpy
 python-multipart
+httpx

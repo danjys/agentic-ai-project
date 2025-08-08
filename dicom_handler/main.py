@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from monai.transforms import Compose, EnsureChannelFirst, ScaleIntensity, ToTensor
 from monai.networks.nets import DenseNet121
+import httpx  # For async HTTP requests; install with `pip install httpx`
 
 app = FastAPI()
 
@@ -50,6 +51,9 @@ async def monai_test():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"MONAI test failed: {str(e)}")
 
+ORTHANC_URL = "http://orthanc:8042/instances"  # Use your Orthanc container hostname/port here
+ORTHANC_USERNAME = "orthanc"  # If auth enabled; otherwise remove
+ORTHANC_PASSWORD = "orthanc"
 
 @app.post("/upload_dicom")
 async def upload_dicom(file: UploadFile = File(...)):
@@ -58,8 +62,21 @@ async def upload_dicom(file: UploadFile = File(...)):
 
     tmp_path = None
     try:
+        contents = await file.read()
+
+        # Forward directly to Orthanc via async HTTP client
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                ORTHANC_URL,
+                content=contents,
+                auth=(ORTHANC_USERNAME, ORTHANC_PASSWORD),  # Remove if no auth
+                headers={"Content-Type": "application/dicom"}
+            )
+            response.raise_for_status()
+            orthanc_response = response.json()
+
+        # Also parse DICOM locally for metadata as before
         with NamedTemporaryFile(delete=False, suffix=".dcm") as tmp:
-            contents = await file.read()
             tmp.write(contents)
             tmp_path = tmp.name
 
@@ -71,20 +88,21 @@ async def upload_dicom(file: UploadFile = File(...)):
         study_desc = dcm.get("StudyDescription", "Unknown")
 
         return {
-            "message": "DICOM file uploaded successfully.",
+            "message": "DICOM file uploaded successfully and sent to Orthanc.",
+            "orthanc_id": orthanc_response.get("ID", "Unknown"),
             "PatientID": patient_id,
             "StudyDate": study_date,
             "Modality": modality,
             "StudyDescription": study_desc,
         }
 
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"Orthanc upload failed: {e.response.text}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process DICOM file: {str(e)}")
-
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
-
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8002)
