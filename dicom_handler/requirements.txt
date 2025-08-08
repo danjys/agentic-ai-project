@@ -1,5 +1,7 @@
 fastapi
-uvicorn[standard]
+uvicorn
+pydicom
 monai
 torch
 numpy
+python-multipart

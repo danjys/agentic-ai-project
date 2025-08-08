@@ -159,3 +159,11 @@ docker-compose build
 docker-compose up -d
 docker-compose ps
 docker-compose logs -f
+
+
+docker-compose down -v  # stops and removes volumes/networks/containers
+docker-compose up -d --build
+
+
+
+Need to swithc to Poetry for dependency manager from requirements.txt
