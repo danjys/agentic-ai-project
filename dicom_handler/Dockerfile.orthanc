@@ -1,0 +1,13 @@
+FROM jodogne/orthanc-plugins:latest
+
+# Install dependencies to build Lua plugin and plugin itself
+RUN apt-get update && \
+    apt-get install -y cmake liblua5.3-dev lua5.3 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Download and build Orthanc Lua plugin from source (match version)
+RUN git clone --depth=1 https://github.com/jodogne/OrthancLuaPlugin.git /tmp/OrthancLuaPlugin && \
+    cd /tmp/OrthancLuaPlugin && \
+    mkdir build && cd build && \
+    cmake .. && make && make install && \
+    rm -rf /tmp/OrthancLuaPlugin

@@ -264,3 +264,5 @@ docker logs orthanc | grep -i error
 docker logs orthanc
 docker inspect orthanc
 
+docker exec -it orthanc ls /usr/share/orthanc/plugins
+docker exec -it orthanc ls /usr/local/share/orthanc/plugins

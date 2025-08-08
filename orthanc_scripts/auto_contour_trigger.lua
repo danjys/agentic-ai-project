@@ -1,4 +1,8 @@
+print("auto_contour_trigger.lua loaded")
+
 function OnStoredInstance(instanceId)
+    print("OnStoredInstance called with instanceId: " .. instanceId)
+
     local http = require 'socket.http'
     local ltn12 = require 'ltn12'
     local url = "http://agent:8000/auto_contour"
@@ -20,7 +24,6 @@ function OnStoredInstance(instanceId)
     if code == 200 then
       print("Auto-contour triggered for instance: " .. instanceId)
     else
-      print("Failed to trigger auto-contour for instance: " .. instanceId)
+      print("Failed to trigger auto-contour for instance: " .. instanceId .. ", HTTP code: " .. tostring(code))
     end
-  end
-  
+end
