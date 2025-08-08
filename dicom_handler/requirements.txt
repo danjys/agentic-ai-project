@@ -6,3 +6,5 @@ torch
 numpy
 python-multipart
 httpx
+pydantic
+requests

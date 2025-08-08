@@ -1,26 +1,28 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Response
 import uvicorn
 import os
 import pydicom
 from tempfile import NamedTemporaryFile
 import numpy as np
 import torch
-from monai.transforms import Compose, EnsureChannelFirst, ScaleIntensity, ToTensor
+from monai.transforms import Compose, ScaleIntensity, ToTensor
 from monai.networks.nets import DenseNet121
-import httpx  # For async HTTP requests; install with `pip install httpx`
+import httpx
+import requests
 
 app = FastAPI()
 
+ORTHANC_URL = "http://orthanc:8042"
+ORTHANC_USERNAME = "orthanc"
+ORTHANC_PASSWORD = "orthanc"
 
 @app.get("/process/health")
 async def health_check():
     return {"status": "ok"}
 
-
 @app.post("/process/health")
 async def health_check_post():
     return {"status": "ok"}
-
 
 @app.get("/process/monai_test")
 async def monai_test():
@@ -29,7 +31,7 @@ async def monai_test():
         dummy_image = np.random.rand(96, 96).astype(np.float32)
         dummy_image = np.expand_dims(dummy_image, axis=0)  # (1, 96, 96)
 
-        # Step 2: Apply MONAI transforms (no need for EnsureChannelFirst anymore)
+        # Step 2: Apply MONAI transforms
         transforms = Compose([
             ScaleIntensity(),
             ToTensor()
@@ -51,10 +53,6 @@ async def monai_test():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"MONAI test failed: {str(e)}")
 
-ORTHANC_URL = "http://orthanc:8042/instances"  # Use your Orthanc container hostname/port here
-ORTHANC_USERNAME = "orthanc"  # If auth enabled; otherwise remove
-ORTHANC_PASSWORD = "orthanc"
-
 @app.post("/upload_dicom")
 async def upload_dicom(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".dcm"):
@@ -64,18 +62,18 @@ async def upload_dicom(file: UploadFile = File(...)):
     try:
         contents = await file.read()
 
-        # Forward directly to Orthanc via async HTTP client
+        # Forward file content directly to Orthanc
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                ORTHANC_URL,
+                f"{ORTHANC_URL}/instances",
                 content=contents,
-                auth=(ORTHANC_USERNAME, ORTHANC_PASSWORD),  # Remove if no auth
+                auth=(ORTHANC_USERNAME, ORTHANC_PASSWORD),
                 headers={"Content-Type": "application/dicom"}
             )
             response.raise_for_status()
             orthanc_response = response.json()
 
-        # Also parse DICOM locally for metadata as before
+        # Save temporarily to parse metadata locally
         with NamedTemporaryFile(delete=False, suffix=".dcm") as tmp:
             tmp.write(contents)
             tmp_path = tmp.name
@@ -103,6 +101,44 @@ async def upload_dicom(file: UploadFile = File(...)):
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+@app.get("/retrieve_dicom/{orthanc_id}")
+def retrieve_dicom(orthanc_id: str):
+    """
+    Retrieve a stored DICOM from Orthanc by Orthanc ID.
+    """
+    try:
+        r = requests.get(
+            f"{ORTHANC_URL}/instances/{orthanc_id}/file",
+            auth=(ORTHANC_USERNAME, ORTHANC_PASSWORD)
+        )
+        r.raise_for_status()
+        return Response(content=r.content, media_type="application/dicom")
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Orthanc retrieval failed: {str(e)}")
+
+@app.get("/search_studies")
+def search_studies(patient_id: str = None, study_date: str = None):
+    query_params = {}
+    if patient_id:
+        query_params["PatientID"] = patient_id
+    if study_date:
+        query_params["StudyDate"] = study_date
+
+    query = {
+        "Level": "Study",
+        "Query": query_params
+    }
+    try:
+        r = requests.post(
+            f"{ORTHANC_URL}/tools/find",
+            json=query,
+            auth=(ORTHANC_USERNAME, ORTHANC_PASSWORD)
+        )
+        r.raise_for_status()
+        return r.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Orthanc search failed: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8002)

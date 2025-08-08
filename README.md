@@ -167,3 +167,28 @@ docker-compose up -d --build
 
 
 Need to swithc to Poetry for dependency manager from requirements.txt
+
+
+HEALTH (GET)
+curl http://localhost:8002/process/health
+
+HEALTH (POST)
+curl -X POST http://localhost:8002/process/health
+
+MONAI
+curl http://localhost:8002/process/monai_test
+
+
+UPLOAD
+curl -X POST http://localhost:8002/upload_dicom \
+     -F "file=@/Users/danjys/Projects/data/xor_test/001848_002.dcm"
+
+RETRIEVE
+curl -o retrieved.dcm http://localhost:8002/retrieve_dicom/1f96f67d8-14909f81-3b9b4dcf-114d15f0-ad81e62a
+
+SEARCH STUDY AND PATIENT ID
+curl "http://localhost:8002/search_studies?patient_id=XDbxJIVWlkn"
+
+docker-compose build dicom
+docker-compose up -d dicom
+docker-compose logs -f dicom 
