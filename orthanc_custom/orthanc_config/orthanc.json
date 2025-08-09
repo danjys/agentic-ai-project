@@ -1,0 +1,32 @@
+{
+  "Name": "Orthanc AI",
+  "AuthenticationEnabled": true,
+  "RegisteredUsers": {
+    "orthanc": "orthanc"
+  },
+  "HttpServer": {
+    "RemoteAccessAllowed": true,
+    "Port": 8042
+  },
+  "DicomServer": {
+    "AET": "ORTHANC",
+    "Port": 4242
+  },
+  "LuaScripts": [
+    "/etc/orthanc/auto_contour_trigger.lua"
+  ],
+  "RemoteLuaScriptExecution": true,
+  "StorageDirectory": "/var/lib/orthanc/db",
+  "Plugins": [
+    "/usr/share/orthanc/plugins"
+  ],
+  "Gdcm": {
+    "Throttling": 4,
+    "RestrictTransferSyntaxes": [
+      "1.2.840.10008.1.2.4.90",
+      "1.2.840.10008.1.2.4.91",
+      "1.2.840.10008.1.2.4.92",
+      "1.2.840.10008.1.2.4.93"
+    ]
+  }
+}

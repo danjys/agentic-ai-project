@@ -1,10 +1,10 @@
 import numpy as np
 import torch
-from monai.networks.nets import DenseNet121
+from monai.networks.nets import DenseNet121, UNet
 from monai.transforms import Compose, ScaleIntensity, EnsureChannelFirst, Resize, ToTensor
-from monai.networks.nets import UNet
+from fastapi import FastAPI, Request, Form
 
-from fastapi import Request, Form
+app = FastAPI()
 
 @app.post("/auto_contour")
 async def auto_contour(request: Request, instance_id: str = Form(None)):
@@ -39,16 +39,18 @@ def run_monai_test():
 
     return predicted_class
 
+
 def preprocess_volume(volume: np.ndarray, target_size=(64, 128, 128)) -> torch.Tensor:
     transforms = Compose([
         ScaleIntensity(),
-        AddChannel(),          # add channel dim
-        Resize(target_size),   # resample to model input size
+        EnsureChannelFirst(),  # <-- use this here instead of AddChannel
+        Resize(target_size),
         ToTensor(),
     ])
     tensor = transforms(volume)
     tensor = tensor.unsqueeze(0)  # batch dimension
     return tensor
+
 
 def load_model(model_path="path_to_your_model.pth") -> torch.nn.Module:
     model = UNet(
@@ -62,6 +64,7 @@ def load_model(model_path="path_to_your_model.pth") -> torch.nn.Module:
     model.load_state_dict(torch.load(model_path, map_location="cpu"))
     model.eval()
     return model
+
 
 def run_inference(volume_tensor: torch.Tensor, model: torch.nn.Module) -> np.ndarray:
     with torch.no_grad():
