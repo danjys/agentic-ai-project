@@ -4,6 +4,20 @@ from monai.networks.nets import DenseNet121
 from monai.transforms import Compose, ScaleIntensity, EnsureChannelFirst, Resize, ToTensor
 from monai.networks.nets import UNet
 
+from fastapi import Request, Form
+
+@app.post("/auto_contour")
+async def auto_contour(request: Request, instance_id: str = Form(None)):
+    if request.headers.get('content-type') == 'application/json':
+        data = await request.json()
+        instance_id = data.get('instance_id')
+    # else instance_id from form param
+    if not instance_id:
+        return {"error": "instance_id missing"}
+    # proceed with processing
+    return {"status": "started", "instance_id": instance_id}
+
+
 def run_monai_test():
     dummy_image = np.random.rand(96, 96).astype(np.float32)
     dummy_image = np.expand_dims(dummy_image, axis=0)  # Add channel dim
