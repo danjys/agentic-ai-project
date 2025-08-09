@@ -1,8 +1,10 @@
--- Add Orthanc lua script dir to Lua module search path
+print("LUA_PATH: " .. package.path)
+print("LUA_CPATH: " .. package.cpath)
 package.path = "/etc/orthanc/lua/?.lua;/etc/orthanc/lua/?/init.lua;" .. package.path
 package.cpath = "/usr/lib/lua/5.4/?.so;" .. package.cpath
+print("Updated LUA_PATH: " .. package.path)
+print("Updated LUA_CPATH: " .. package.cpath)
 
-print("auto_contour_trigger.lua loaded")
 
 function OnStoredInstance(instanceId)
     print("OnStoredInstance called with instanceId: " .. instanceId)
