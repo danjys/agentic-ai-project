@@ -38,6 +38,8 @@ services:
       - ./orthanc_custom/orthanc_config/orthanc.json:/etc/orthanc/orthanc.json:ro
       - ./orthanc_custom/orthanc_scripts/auto_contour_trigger.lua:/etc/orthanc/auto_contour_trigger.lua:ro
     restart: always
+    platform: linux/amd64  # To match your host platform warning
+
 
 
 volumes:

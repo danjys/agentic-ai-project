@@ -8,7 +8,5 @@ COPY orthanc_scripts/auto_contour_trigger.lua /etc/orthanc/auto_contour_trigger.
 
 EXPOSE 8042 4242
 
-# Remove this line to avoid user error
-# USER orthanc
-
-CMD ["Orthanc", "/etc/orthanc/orthanc.json"]
+ENTRYPOINT ["Orthanc"]
+CMD ["/etc/orthanc/orthanc.json"]
