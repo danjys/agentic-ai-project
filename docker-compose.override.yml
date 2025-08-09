@@ -27,7 +27,7 @@ services:
   orthanc:
     build:
       context: ./orthanc_custom
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.orthanc
     image: custom-orthanc:latest
     container_name: orthanc
     ports:

@@ -266,3 +266,6 @@ docker inspect orthanc
 
 docker exec -it orthanc ls /usr/share/orthanc/plugins
 docker exec -it orthanc ls /usr/local/share/orthanc/plugins
+
+
+find . -path './.git' -prune -o -print | grep -v '^./\.git'
