@@ -1,33 +1,30 @@
--- Extend package.path so require can find json.lua here
-package.path = package.path .. ";/etc/orthanc/lua/?.lua"
+-- auto_contour.lua
 
-local json = require("json")
+function OnStoredInstance(instanceId, tags, metadata, origin)
+  -- Log the instance ID
+  print("Lua says: OnStoredInstance called with instanceId: " .. instanceId)
 
-function OnStoredInstance(instanceId)
-    print("Lua says: OnStoredInstance called with instanceId: " .. instanceId)
+  -- Prepare JSON payload for POST
+  local payload = {
+    instance_id = instanceId
+  }
 
-    -- Compose payload table
-    local payload = {
-        instance_id = instanceId
-    }
+  -- Encode payload to JSON
+  local jsonPayload = OrthancLuaJson.encode(payload)
 
-    -- Encode payload to JSON string
-    local payloadJson = json.encode(payload)
+  -- Log payload for debugging
+  print("Lua says: JSON payload: " .. jsonPayload)
 
-    -- Post to your FastAPI endpoint
-    local url = "http://monai-service:8000/auto_contour"
+  -- Perform POST to MONAI auto-contour endpoint
+  local httpResponse, httpStatus = RestApiPost(
+    "http://monai:8000/auto_contour",
+    jsonPayload,
+    { ["Content-Type"] = "application/json" }
+  )
 
-    -- Use Orthanc RestApiPost for HTTP POST with JSON content
-    local status, response = pcall(function()
-        return RestApiPost(url, payloadJson, "application/json")
-    end)
-
-    if not status or not response then
-        print("Lua says: Failed to trigger auto-contour, HTTP status: nil")
-        return
-    end
-
-    print("Lua says: auto-contour triggered successfully. Response: " .. response)
+  if httpStatus == 200 then
+    print("Lua says: Successfully triggered auto-contour job for instance: " .. instanceId)
+  else
+    print("Lua says: Failed to trigger auto-contour for instance: " .. instanceId .. ", HTTP status: " .. tostring(httpStatus))
+  end
 end
-
-print("Lua says: auto_contour_trigger.lua loaded")
