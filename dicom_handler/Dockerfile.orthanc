@@ -1,13 +1,15 @@
-FROM jodogne/orthanc-plugins:latest
+FROM osimis/orthanc:22.10.2
 
-# Install dependencies to build Lua plugin and plugin itself
-RUN apt-get update && \
-    apt-get install -y cmake liblua5.3-dev lua5.3 && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y lua5.4 lua5.4-dev luarocks build-essential && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Download and build Orthanc Lua plugin from source (match version)
-RUN git clone --depth=1 https://github.com/jodogne/OrthancLuaPlugin.git /tmp/OrthancLuaPlugin && \
-    cd /tmp/OrthancLuaPlugin && \
-    mkdir build && cd build && \
-    cmake .. && make && make install && \
-    rm -rf /tmp/OrthancLuaPlugin
+RUN luarocks install luasocket
+
+# Copy the Lua socket modules into a directory Orthanc can read
+RUN mkdir -p /etc/orthanc/lua/socket && \
+    cp -r /usr/local/share/lua/5.4/socket /etc/orthanc/lua/ && \
+    cp /usr/local/share/lua/5.4/ltn12.lua /etc/orthanc/lua/ && \
+    cp /usr/local/share/lua/5.4/mime.lua /etc/orthanc/lua/
+
+ENV LUA_PATH="/etc/orthanc/lua/?.lua;/etc/orthanc/lua/?/init.lua;;"
+ENV LUA_CPATH="/usr/lib/lua/5.4/?.so;;"

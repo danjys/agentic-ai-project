@@ -9,7 +9,7 @@ services:
       - dicom
 
   fhir:
-    image: hapiproject/hapi-fhir-jpaserver:5.6.0
+    image: hapiproject/hapi:latest
     container_name: fhir
     ports:
       - "8011:8080"  # Map container's 8080 to host 8011
@@ -21,20 +21,29 @@ services:
     build: ./dicom_handler
     volumes:
       - ./dicom_handler:/app
+    ports:
+      - "8002:8002"
 
   orthanc:
-    image: jodogne/orthanc-plugins
-    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: dicomhandler/Dockerfile.orthanc
     container_name: orthanc
     ports:
-      - "8042:8042"    # Web UI + REST API
-      - "4242:4242"    # DICOM networking
+      - "8042:8042"
+      - "4242:4242"
+    volumes:
+      - orthanc-storage:/var/lib/orthanc
+      - ./orthanc_scripts/auto_contour_trigger.lua:/etc/orthanc/auto_contour_trigger.lua:ro
     environment:
       ORTHANC__Name: "Orthanc AI"
       ORTHANC__AuthenticationEnabled: "true"
-      ORTHANC__RegisteredUsers: '{"orthanc": "orthanc"}'
-    volumes:
-      - orthanc-storage:/var/lib/orthanc
+      ORTHANC__RegisteredUsers: '{"orthanc":"orthanc"}'
+      ORTHANC__HttpServer__RemoteAccessAllowed: "true"
+      ORTHANC__HttpServer__Port: "8042"
+      ORTHANC__DicomServer__AET: "ORTHANC"
+      ORTHANC__DicomServer__Port: "4242"
+      ORTHANC__LuaScripts__0: "/etc/orthanc/auto_contour_trigger.lua"
     restart: always
 
 volumes:
