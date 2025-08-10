@@ -1,12 +1,32 @@
 FROM osimis/orthanc:22.10.2
 
-USER root
-RUN apt-get update && apt-get install -y lua5.1 lua5.1-dev
+# 1. Create orthanc user FIRST with known UID/GID
+RUN addgroup --system --gid 1000 orthanc && \
+    adduser --system --uid 1000 --ingroup orthanc orthanc
 
-COPY orthanc_config/orthanc.json /etc/orthanc/orthanc.json
-COPY orthanc_scripts/auto_contour_trigger.lua /etc/orthanc/auto_contour_trigger.lua
+# 2. Install Lua support
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        lua5.1 \
+        liblua5.1-0 \
+        lua5.1-dev && \
+    apt-get remove -y lua5.3 liblua5.3-0 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-EXPOSE 8042 4242
+# 3. Clean plugins (keep only Lua)
+# Remove all plugins except Lua 5.1 compatible ones
+RUN find /usr/share/orthanc/plugins-available/ -type f ! -name 'libOrthancLua.so' -delete && \
+    mkdir -p /usr/share/orthanc/plugins && \
+    ln -sf /usr/share/orthanc/plugins-available/libOrthancLua.so /usr/share/orthanc/plugins/
 
-ENTRYPOINT ["Orthanc"]
-CMD ["/etc/orthanc/orthanc.json"]
+# 4. Copy files with proper ownership
+COPY --chown=1000:1000 orthanc_config/orthanc.json /etc/orthanc/
+COPY --chown=1000:1000 orthanc_scripts/auto_contour_trigger.lua /etc/orthanc/
+
+# 5. Set storage permissions
+RUN mkdir -p /var/lib/orthanc/db && \
+    chown -R 1000:1000 /var/lib/orthanc
+
+USER 1000
+CMD ["Orthanc", "/etc/orthanc/orthanc.json"]

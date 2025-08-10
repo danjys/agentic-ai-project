@@ -28,19 +28,12 @@ services:
     build:
       context: ./orthanc_custom
       dockerfile: Dockerfile.orthanc
-    image: custom-orthanc:latest
-    container_name: orthanc
     ports:
       - "8042:8042"
       - "4242:4242"
     volumes:
       - orthanc-storage:/var/lib/orthanc
-      - ./orthanc_custom/orthanc_config/orthanc.json:/etc/orthanc/orthanc.json:ro
-      - ./orthanc_custom/orthanc_scripts/auto_contour_trigger.lua:/etc/orthanc/auto_contour_trigger.lua:ro
-    restart: always
-    platform: linux/amd64  # To match your host platform warning
-
-
+    restart: unless-stopped
 
 volumes:
   orthanc-storage:

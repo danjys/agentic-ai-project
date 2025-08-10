@@ -26,25 +26,17 @@ services:
 
   orthanc:
     build:
-      context: .
-      dockerfile: dicomhandler/Dockerfile.orthanc
+      context: ./orthanc_custom
+      dockerfile: Dockerfile.orthanc
+    image: custom-orthanc:latest
     container_name: orthanc
     ports:
       - "8042:8042"
       - "4242:4242"
     volumes:
       - orthanc-storage:/var/lib/orthanc
-      - ./orthanc_scripts/auto_contour_trigger.lua:/etc/orthanc/auto_contour_trigger.lua:ro
-    environment:
-      ORTHANC__Name: "Orthanc AI"
-      ORTHANC__AuthenticationEnabled: "true"
-      ORTHANC__RegisteredUsers: '{"orthanc":"orthanc"}'
-      ORTHANC__HttpServer__RemoteAccessAllowed: "true"
-      ORTHANC__HttpServer__Port: "8042"
-      ORTHANC__DicomServer__AET: "ORTHANC"
-      ORTHANC__DicomServer__Port: "4242"
-      ORTHANC__LuaScripts__0: "/etc/orthanc/auto_contour_trigger.lua"
     restart: always
+    platform: linux/amd64
 
 volumes:
   orthanc-storage:

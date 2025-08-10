@@ -269,3 +269,13 @@ docker exec -it orthanc ls /usr/local/share/orthanc/plugins
 
 
 find . -path './.git' -prune -o -print | grep -v '^./\.git'
+
+NUCLEAR OPTIONS
+docker-compose down -v --remove-orphans
+docker system prune -a -f
+
+
+
+docker-compose down -v && \
+docker-compose build --no-cache && \
+docker-compose up -d
