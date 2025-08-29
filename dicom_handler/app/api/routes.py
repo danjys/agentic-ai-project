@@ -1,89 +1,51 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException, Response
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from tempfile import NamedTemporaryFile
 import os
-from app.services import orthanc, monai, dicom_utils
-from app.api import auto_contour
 import logging
+import asyncio
+
+from app.services import orthanc, auto_contour_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Add new feature routers:
-router.include_router(auto_contour.router, prefix="/auto_contour")
-
 @router.get("/process/health")
-async def health_check():
+async def health():
     return {"status": "ok"}
 
-@router.post("/process/health")
-async def health_check_post():
-    return {"status": "ok"}
+@router.post("/upload_dicom_series")
+async def upload_dicom_series(files: list[UploadFile] = File(...)):
+    """
+    Upload a full CT series (multiple DICOM files) to Orthanc and trigger auto-contouring
+    once all slices are uploaded.
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="No files uploaded")
 
-@router.get("/process/monai_test")
-async def monai_test():
+    instance_ids = []
+    tmp_paths = []
+
     try:
-        predicted_class = monai.run_monai_test()
-        return {"predicted_class": predicted_class}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"MONAI test failed: {str(e)}")
+        for file in files:
+            if not file.filename.lower().endswith(".dcm"):
+                raise HTTPException(status_code=400, detail=f"Only .dcm files supported: {file.filename}")
 
-@router.post("/upload_dicom")
-async def upload_dicom(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(".dcm"):
-        raise HTTPException(status_code=400, detail="Only .dcm (DICOM) files are supported.")
+            contents = await file.read()
+            response = await orthanc.upload_dicom_to_orthanc(contents)
+            instance_id = response["ID"]
+            instance_ids.append(instance_id)
 
-    tmp_path = None
-    try:
-        contents = await file.read()
-        logger.info(f"Uploading file: {file.filename}, size: {len(contents)} bytes")
+            with NamedTemporaryFile(delete=False, suffix=".dcm") as tmp:
+                tmp.write(contents)
+                tmp_paths.append(tmp.name)
 
-        orthanc_response = await orthanc.upload_dicom_to_orthanc(contents)
-        logger.info(f"Orthanc response: {orthanc_response}")
+        # Trigger auto-contour pipeline asynchronously
+        # Pass the first instance ID to fetch the whole study
+        asyncio.create_task(auto_contour_service.run_auto_contour_pipeline(instance_ids[0], is_instance=True))
 
-        with NamedTemporaryFile(delete=False, suffix=".dcm") as tmp:
-            tmp.write(contents)
-            tmp_path = tmp.name
+        return {"message": "DICOM series uploaded and auto-contour triggered", "instance_ids": instance_ids}
 
-        metadata = dicom_utils.parse_dicom_metadata(tmp_path)
-        logger.info(f"Extracted DICOM metadata: {metadata}")
-
-        return {
-            "message": "DICOM file uploaded successfully and sent to Orthanc.",
-            "orthanc_id": orthanc_response.get("ID", "Unknown"),
-            **metadata
-        }
-
-    except Exception as e:
-        logger.error(f"Error processing DICOM upload: {repr(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to process DICOM file: {repr(e)}")
     finally:
-        if tmp_path and os.path.exists(tmp_path):
-            os.remove(tmp_path)
-
-@router.get("/retrieve_dicom/{orthanc_id}")
-def retrieve_dicom(orthanc_id: str):
-    try:
-        content = orthanc.retrieve_dicom_from_orthanc(orthanc_id)
-        return Response(content=content, media_type="application/dicom")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Orthanc retrieval failed: {e}")
-
-@router.get("/search_studies")
-def search_studies(patient_id: str = None, study_date: str = None):
-    try:
-        results = orthanc.search_studies(patient_id, study_date)
-        return results
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Search failed")
-
-@router.post("/auto_contour/{study_id}")
-async def auto_contour(study_id: str):
-    try:
-        volume, slices = orthanc.load_volume_from_study(study_id)
-        tensor = monai.preprocess_volume(volume)
-        model = monai.load_model("models/your_model.pth")
-        segmentation = monai.run_inference(tensor, model)
-        # TODO: Convert segmentation to DICOM RTSTRUCT and upload
-        return {"message": "Auto contouring done.", "study_id": study_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        for tmp_path in tmp_paths:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)

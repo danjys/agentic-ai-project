@@ -12,7 +12,7 @@ services:
     image: hapiproject/hapi:latest
     container_name: fhir
     ports:
-      - "8011:8080"  # Map container's 8080 to host 8011
+      - "8011:8080"
     environment:
       - HAPI_FHIR_VERSION=5.6.0
     restart: always
@@ -25,14 +25,15 @@ services:
       - "8002:8002"
 
   orthanc:
-    build:
-      context: ./orthanc_custom
-      dockerfile: Dockerfile.orthanc
+    image: osimis/orthanc:22.10.2
+    container_name: orthanc
     ports:
       - "8042:8042"
       - "4242:4242"
     volumes:
       - orthanc-storage:/var/lib/orthanc
+      - ./orthanc_custom/orthanc_config:/config:ro
+    command: ["/config/orthanc.json"]
     restart: unless-stopped
 
 volumes:

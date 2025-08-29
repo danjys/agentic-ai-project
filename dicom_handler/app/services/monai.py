@@ -1,73 +1,40 @@
 import numpy as np
-import torch
-from monai.networks.nets import DenseNet121, UNet
-from monai.transforms import Compose, ScaleIntensity, EnsureChannelFirst, Resize, ToTensor
-from fastapi import FastAPI, Request, Form
+import logging
+from app.services import orthanc
 
-app = FastAPI()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
-@app.post("/auto_contour")
-async def auto_contour(request: Request, instance_id: str = Form(None)):
-    if request.headers.get('content-type') == 'application/json':
-        data = await request.json()
-        instance_id = data.get('instance_id')
-    # else instance_id from form param
-    if not instance_id:
-        return {"error": "instance_id missing"}
-    # proceed with processing
-    return {"status": "started", "instance_id": instance_id}
+# Dummy MONAI model
+class DummyModel:
+    def __call__(self, volume_tensor):
+        return np.zeros_like(volume_tensor)
 
 
-def run_monai_test():
-    dummy_image = np.random.rand(96, 96).astype(np.float32)
-    dummy_image = np.expand_dims(dummy_image, axis=0)  # Add channel dim
-
-    transforms = Compose([
-        EnsureChannelFirst(),  # instead of AddChannel()
-        ScaleIntensity(),
-        ToTensor()
-    ])
-
-    input_tensor = transforms(dummy_image).unsqueeze(0)
-
-    model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=2)
-    model.eval()
-
-    with torch.no_grad():
-        output = model(input_tensor)
-        predicted_class = output.argmax(dim=1).item()
-
-    return predicted_class
+def preprocess_volume(volume: np.ndarray):
+    return volume.astype(np.float32)
 
 
-def preprocess_volume(volume: np.ndarray, target_size=(64, 128, 128)) -> torch.Tensor:
-    transforms = Compose([
-        ScaleIntensity(),
-        EnsureChannelFirst(),  # <-- use this here instead of AddChannel
-        Resize(target_size),
-        ToTensor(),
-    ])
-    tensor = transforms(volume)
-    tensor = tensor.unsqueeze(0)  # batch dimension
-    return tensor
+def load_model(path: str = None):
+    logger.info("Loading dummy model for auto-contour")
+    return DummyModel()
 
 
-def load_model(model_path="path_to_your_model.pth") -> torch.nn.Module:
-    model = UNet(
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=2,  # number of classes for segmentation
-        channels=(16, 32, 64, 128, 256),
-        strides=(2, 2, 2, 2),
-        num_res_units=2,
-    )
-    model.load_state_dict(torch.load(model_path, map_location="cpu"))
-    model.eval()
-    return model
+def run_inference(volume_tensor, model):
+    return model(volume_tensor)
 
 
-def run_inference(volume_tensor: torch.Tensor, model: torch.nn.Module) -> np.ndarray:
-    with torch.no_grad():
-        output = model(volume_tensor)
-        segmentation = torch.argmax(output, dim=1)
-    return segmentation.squeeze(0).cpu().numpy()
+async def run_auto_contour_pipeline(instance_id: str, is_instance=True):
+    """
+    Run auto-contouring pipeline for a single instance or full study.
+    """
+    ds = orthanc.download_dicom_instance(instance_id) if is_instance else None
+    study_id = ds.StudyInstanceUID if is_instance else instance_id
+
+    volume, slices = orthanc.load_volume_from_study_or_instance(study_id, is_instance=False)
+    tensor = preprocess_volume(volume)
+    model = load_model()
+    segmentation = run_inference(tensor, model)
+
+    logger.info(f"Auto-contour completed for study {study_id}")
+    return {"message": "Auto-contouring done", "study_id": study_id, "seg_shape": segmentation.shape}

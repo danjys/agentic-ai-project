@@ -181,7 +181,7 @@ curl http://localhost:8002/process/monai_test
 
 UPLOAD
 curl -X POST http://localhost:8002/upload_dicom \
-     -F "file=@/Users/danjys/Projects/data/xor_test/001848_005.dcm"
+     -F "file=@/Users/danjy/Projects/FullSolution/data/Anonymized_20250821/series-00001/image-00000.dcm"
 
 RETRIEVE
 curl -o retrieved.dcm http://localhost:8002/retrieve_dicom/1f96f67d8-14909f81-3b9b4dcf-114d15f0-ad81e62a
@@ -275,7 +275,19 @@ docker-compose down -v --remove-orphans
 docker system prune -a -f
 
 
-
+    
 docker-compose down -v && \
 docker-compose build --no-cache && \
 docker-compose up -d
+
+
+
+UPLOAD
+curl -X POST http://localhost:8002/upload_dicom \
+     -F "file=@/Users/danjy/Projects/FullSolution/data/Anonymized_20250821/series-00001/image-00000.dcm"
+
+RETRIEVE
+curl -o retrieved.dcm http://localhost:8002/retrieve_dicom/1f96f67d8-14909f81-3b9b4dcf-114d15f0-ad81e62a
+
+DICOM HANDLE END POINT
+http://localhost:8002/docs

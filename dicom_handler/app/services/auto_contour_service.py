@@ -1,38 +1,55 @@
-import tempfile
-import pydicom
+import logging
 import numpy as np
-from app.services import orthanc, monai, dicom_utils
+from app.services import orthanc
 
-async def run_auto_contour_pipeline(instance_id: str):
-    # Step 1: Retrieve DICOM bytes from Orthanc
-    dicom_bytes = orthanc.retrieve_dicom_from_orthanc(instance_id)
-    if not dicom_bytes:
-        raise ValueError("DICOM instance not found in Orthanc")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
-    # Step 2: Save to temporary file for pydicom
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".dcm") as tmp:
-        tmp.write(dicom_bytes)
-        tmp_path = tmp.name
+# --- Dummy MONAI model ---
+class DummyModel:
+    def __call__(self, volume_tensor):
+        # Return zeros same shape as input
+        return np.zeros_like(volume_tensor)
 
+def preprocess_volume(volume: np.ndarray):
+    return volume.astype(np.float32)
+
+def load_model(path: str = None):
+    logger.info("Loading dummy model for auto-contour")
+    return DummyModel()
+
+def run_inference(volume_tensor, model):
+    return model(volume_tensor)
+
+async def run_auto_contour_pipeline(instance_id: str, is_instance=True):
+    """
+    Run the auto-contouring pipeline for a full CT study.
+    - instance_id: ID of one DICOM instance in the series
+    - is_instance: True if passing a single instance
+    """
     try:
-        # Step 3: Load DICOM dataset and extract image
-        ds = pydicom.dcmread(tmp_path)
-        image = ds.pixel_array.astype(np.float32)
+        # Download instance to get StudyInstanceUID
+        ds = orthanc.download_dicom_instance(instance_id) if is_instance else None
+        study_id = ds.StudyInstanceUID if is_instance else instance_id
 
-        # Step 4: Run MONAI auto-contour model (implement this in monai.py)
-        contour_mask = monai.run_auto_contour_model(image)
+        # Load full volume
+        volume, slices = orthanc.load_volume_from_study_or_instance(study_id, is_instance=False)
+        logger.info(f"Volume loaded with shape: {volume.shape}")
 
-        # Step 5: Create RT Structure Set DICOM bytes from mask and original ds
-        contour_dicom_bytes = dicom_utils.create_rtstruct_from_mask(contour_mask, ds)
+        # Preprocess
+        tensor = preprocess_volume(volume)
+        logger.info("Volume preprocessing done")
 
-        # Step 6: Upload contour DICOM to Orthanc
-        upload_response = await orthanc.upload_dicom_to_orthanc(contour_dicom_bytes)
+        # Load model
+        model = load_model()
+        logger.info("Model loaded")
 
-        return {
-            "message": "Auto-contour completed and uploaded",
-            "contour_orthanc_id": upload_response.get("ID"),
-        }
-    finally:
-        import os
-        if tmp_path and os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        # Run inference
+        segmentation = run_inference(tensor, model)
+        logger.info("Auto-contouring done")
+
+        return {"message": "Auto-contouring completed", "study_id": study_id, "volume_shape": volume.shape, "seg_shape": segmentation.shape}
+
+    except Exception as e:
+        logger.error(f"Auto-contour pipeline failed: {e}", exc_info=True)
+        raise
